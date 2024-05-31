@@ -167,14 +167,24 @@ class GPT(nn.Module):
         elif isinstance(module, nn.Embedding):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
 
-    def forward(self, idx, targets=None):
+    def forward(self, idx, targets=None,
+                tok_emb=None, reduce_loss=True):
+        """
+        Main forward pass of the GPT model. If `targets` are passed, will return the loss.
+        :param idx: sequence to condition on.
+        :param targets: ground truth sequence (e.g., in training - same as `idx`); shift is done within the function.
+        :param tok_emb: optional token embeddings (if embedding took place before; e.g., to calculate gradients).
+        :param reduce_loss: whether to reduce the loss across the batch, or to preserve the batch dimension.
+                            In the first case the returns loss is a scalar, in the second it is a tensor of shape (b).
+        """
         device = idx.device
         b, t = idx.size()
         assert t <= self.config.block_size, f"Cannot forward sequence of length {t}, block size is only {self.config.block_size}"
         pos = torch.arange(0, t, dtype=torch.long, device=device) # shape (t)
 
         # forward the GPT model itself
-        tok_emb = self.transformer.wte(idx) # token embeddings of shape (b, t, n_embd)
+        if tok_emb is None:  # can skip input-embedding stage, if given
+            tok_emb = self.transformer.wte(idx) # token embeddings of shape (b, t, n_embd)
         pos_emb = self.transformer.wpe(pos) # position embeddings of shape (t, n_embd)
         x = self.transformer.drop(tok_emb + pos_emb)
         for block in self.transformer.h:
@@ -184,9 +194,15 @@ class GPT(nn.Module):
         if targets is not None:
             # if we are given some desired targets also calculate the loss
             logits = self.lm_head(x)
-            shift_logits = logits[..., :-1, :]
-            shift_targets = targets[..., 1:]
-            loss = F.cross_entropy(shift_logits.view(-1, shift_logits.size(-1)), shift_targets.view(-1), ignore_index=-100)
+            shift_logits = logits[..., :-1, :].contiguous()
+            shift_targets = targets[..., 1:].contiguous()
+            if reduce_loss:
+                loss = F.cross_entropy(shift_logits.view(-1, shift_logits.size(-1)), shift_targets.view(-1),
+                                       ignore_index=-100)
+            else:
+                loss = F.cross_entropy(shift_logits.view(-1, shift_logits.size(-1)), shift_targets.view(-1),
+                                       ignore_index=-100, reduction='none')
+                loss = loss.view(*shift_targets.shape).mean(dim=-1)
         else:
             # inference-time mini-optimization: only forward the lm_head on the very last position
             logits = self.lm_head(x[:, [-1], :]) # note: using list [-1] to preserve the time dim
