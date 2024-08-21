@@ -180,6 +180,9 @@ class GPT(nn.Module):
         device = idx.device
         b, t = idx.size()
         assert t <= self.config.block_size, f"Cannot forward sequence of length {t}, block size is only {self.config.block_size}"
+        if idx.shape[0] > 1:
+            print("[WARNING!] Got batch size > 1. Attention-Masking is not supported, so verify that the input is aligned "
+                  "(i.e., all samples of same length). ")
         pos = torch.arange(0, t, dtype=torch.long, device=device) # shape (t)
 
         # forward the GPT model itself

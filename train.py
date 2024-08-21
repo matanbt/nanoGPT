@@ -93,6 +93,7 @@ if ddp:
     # down the desired gradient accumulation iterations per process proportionally
     assert gradient_accumulation_steps % ddp_world_size == 0
     gradient_accumulation_steps //= ddp_world_size
+    print("ddp info: rank = %d, local_rank = %d, world_size = %d" % (ddp_rank, ddp_local_rank, ddp_world_size))
 else:
     # if not ddp, we are running on a single gpu, and one process
     master_process = True
