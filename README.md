@@ -1,6 +1,10 @@
 
-# nanoGPT
+# nanoGPT with BERT tokenizer 
+This repository is a fork of nanoGPT with slight modifications, including a script to create a training set with BERT tokenizer. 
 
+We trained nanoGPT with BERT tokenizer and made the weights available [here](https://huggingface.co/MatanBT/nanoGPT-BERT-Tokenizer/tree/main).
+
+# nanoGPT
 ![nanoGPT](assets/nanogpt.jpg)
 
 The simplest, fastest repository for training/finetuning medium-sized GPTs. It is a rewrite of [minGPT](https://github.com/karpathy/minGPT) that prioritizes teeth over education. Still under active development, but currently the file `train.py` reproduces GPT-2 (124M) on OpenWebText, running on a single 8XA100 40GB node in about 4 days of training. The code itself is plain and readable: `train.py` is a ~300-line boilerplate training loop and `model.py` a ~300-line GPT model definition, which can optionally load the GPT-2 weights from OpenAI. That's it.
